@@ -362,7 +362,7 @@ func NewNamespaceAttr(ns string, name string) (term Term) {
 }
 
 func (term NamespaceAttr) String() string {
-	return fmt.Sprintf("%s:%s", term.NS, term.Attr)
+	return fmt.Sprintf("%s%s", term.NS, term.Attr)
 }
 
 func (term NamespaceAttr) RawValue() string {
