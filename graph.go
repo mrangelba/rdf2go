@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
+	"strings"
 
 	rdf "github.com/deiu/gon3"
 	jsonld "github.com/linkeddata/gojsonld"
@@ -15,10 +17,11 @@ import (
 
 // Graph structure
 type Graph struct {
-	triples    map[*Triple]bool
+	triples    []*Triple
 	httpClient *http.Client
 	uri        string
 	term       Term
+	namespaces map[string]string
 }
 
 // NewHttpClient creates an http.Client to be used for parsing resources
@@ -40,10 +43,11 @@ func NewGraph(uri string, skipVerify ...bool) *Graph {
 		skip = skipVerify[0]
 	}
 	g := &Graph{
-		triples:    make(map[*Triple]bool),
+		triples:    make([]*Triple, 0),
 		httpClient: NewHttpClient(skip),
 		uri:        uri,
 		term:       NewResource(uri),
+		namespaces: map[string]string{},
 	}
 	return g
 }
@@ -65,7 +69,7 @@ func (g *Graph) URI() string {
 
 // One returns one triple based on a triple pattern of S, P, O objects
 func (g *Graph) One(s Term, p Term, o Term) *Triple {
-	for triple := range g.IterTriples() {
+	for _, triple := range g.IterTriples() {
 		if s != nil {
 			if p != nil {
 				if o != nil {
@@ -105,37 +109,36 @@ func (g *Graph) One(s Term, p Term, o Term) *Triple {
 
 // IterTriples provides a channel containing all the triples in the graph.
 // Note that the returned channel is already closed.
-func (g *Graph) IterTriples() (ch chan *Triple) {
-	// This function returns a channel rather than a slice for backwards compatibility.
-	// It does not use a goroutine to populate the channel because that can trigger Go's 'concurrent map misuse'
-	// detector, and would have little performance benefit.
-	ch = make(chan *Triple, len(g.triples))
-	for triple := range g.triples {
-		ch <- triple
-	}
-	close(ch)
-	return ch
+func (g *Graph) IterTriples() []*Triple {
+	return g.triples
 }
 
 // Add is used to add a Triple object to the graph
 func (g *Graph) Add(t *Triple) {
-	g.triples[t] = true
+	if !slices.Contains(g.triples, t) {
+		g.triples = append(g.triples, t)
+	}
 }
 
 // AddTriple is used to add a triple made of individual S, P, O objects
 func (g *Graph) AddTriple(s Term, p Term, o Term) {
-	g.triples[NewTriple(s, p, o)] = true
+	g.triples = append(g.triples, NewTriple(s, p, o))
 }
 
 // Remove is used to remove a Triple object
 func (g *Graph) Remove(t *Triple) {
-	delete(g.triples, t)
+	for i, triple := range g.triples {
+		if triple.Equal(t) {
+			g.triples = append(g.triples[:i], g.triples[i+1:]...)
+			break
+		}
+	}
 }
 
 // All is used to return all triples that match a given pattern of S, P, O objects
 func (g *Graph) All(s Term, p Term, o Term) []*Triple {
 	var triples []*Triple
-	for triple := range g.IterTriples() {
+	for _, triple := range g.IterTriples() {
 		if s != nil {
 			if p != nil {
 				if o != nil {
@@ -173,7 +176,7 @@ func (g *Graph) All(s Term, p Term, o Term) []*Triple {
 
 // Merge is used to add all the triples form another graph to this one
 func (g *Graph) Merge(toMerge *Graph) {
-	for triple := range toMerge.IterTriples() {
+	for _, triple := range toMerge.IterTriples() {
 		g.Add(triple)
 	}
 }
@@ -245,7 +248,17 @@ func (g *Graph) LoadURI(uri string) error {
 // String is used to serialize the graph object using NTriples
 func (g *Graph) String() string {
 	var toString string
-	for triple := range g.IterTriples() {
+
+	// add namespaces
+	for ns := range g.namespaces {
+		toString += fmt.Sprintf("@prefix %s <%s> .\n", ns, g.namespaces[ns])
+	}
+
+	if len(g.namespaces) > 0 {
+		toString += "\n"
+	}
+
+	for _, triple := range g.IterTriples() {
 		toString += triple.String() + "\n"
 	}
 	return toString
@@ -265,18 +278,39 @@ func (g *Graph) Serialize(w io.Writer, mime string) error {
 func (g *Graph) serializeTurtle(w io.Writer) error {
 	var err error
 
-	triplesBySubject := make(map[string][]*Triple)
-
-	for triple := range g.IterTriples() {
-		s := encodeTerm(triple.Subject)
-		triplesBySubject[s] = append(triplesBySubject[s], triple)
+	for ns := range g.namespaces {
+		_, err = fmt.Fprintf(w, "@prefix %s <%s> .\n", ns, g.namespaces[ns])
+		if err != nil {
+			return err
+		}
 	}
 
-	for subject, triples := range triplesBySubject {
+	if len(g.namespaces) > 0 {
+		_, err = fmt.Fprintf(w, "\n")
+		if err != nil {
+			return err
+		}
+	}
+
+	triplesBySubject := make(map[string][]*Triple)
+	subjects := []string{}
+
+	for _, triple := range g.IterTriples() {
+		s := encodeTerm(triple.Subject)
+		triplesBySubject[s] = append(triplesBySubject[s], triple)
+
+		if !slices.Contains(subjects, s) {
+			subjects = append(subjects, s)
+		}
+	}
+
+	for i, subject := range subjects {
 		_, err = fmt.Fprintf(w, "%s\n", subject)
 		if err != nil {
 			return err
 		}
+
+		triples := triplesBySubject[subject]
 
 		for key, triple := range triples {
 			p := encodeTerm(triple.Predicate)
@@ -289,43 +323,27 @@ func (g *Graph) serializeTurtle(w io.Writer) error {
 				}
 				break
 			}
+
 			_, err = fmt.Fprintf(w, "  %s %s ;\n", p, o)
 			if err != nil {
 				return err
 			}
 		}
 
+		if len(subjects) > i+1 {
+			_, err = fmt.Fprintf(w, "\n\n")
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
 }
 
-// func (g *Graph) serializeJSONLD(w io.Writer) error {
-// 	d := jsonld.NewDataset()
-// 	triples := []*jsonld.Triple{}
-
-// 	for triple := range g.IterTriples() {
-// 		jTriple := jsonld.NewTriple(term2jterm(triple.Subject), term2jterm(triple.Predicate), term2jterm(triple.Object))
-// 		triples = append(triples, jTriple)
-// 	}
-
-// 	d.Graphs[g.URI()] = triples
-// 	opts := jsonld.NewOptions(g.URI())
-// 	opts.UseNativeTypes = false
-// 	opts.UseRdfType = true
-// 	serializedJSON := jsonld.FromRDF(d, opts)
-// 	jsonOut, err := json.MarshalIndent(serializedJSON, "", "    ")
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	_, err = fmt.Fprintf(w, "%s", jsonOut)
-// 	return err
-// }
-
 func (g *Graph) serializeJSONLD(w io.Writer) error {
 	r := []map[string]interface{}{}
-	for elt := range g.IterTriples() {
+	for _, elt := range g.IterTriples() {
 		var one map[string]interface{}
 		switch elt.Subject.(type) {
 		case *BlankNode:
@@ -365,4 +383,14 @@ func (g *Graph) serializeJSONLD(w io.Writer) error {
 	}
 	fmt.Fprintf(w, string(bytes))
 	return nil
+}
+
+func (g *Graph) Bind(ns *Namespace) {
+	namespace := ns.NS
+
+	if !strings.HasSuffix(namespace, ":") {
+		namespace += ":"
+	}
+
+	g.namespaces[namespace] = ns.URI
 }

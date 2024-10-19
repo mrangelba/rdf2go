@@ -29,7 +29,6 @@ func MockServer() http.Handler {
 		w.Header().Add("Content-Type", "text/turtle")
 		w.WriteHeader(200)
 		w.Write([]byte(simpleTurtle))
-		return
 	}))
 	return handler
 }
@@ -217,17 +216,17 @@ func TestGraphMerge(t *testing.T) {
 	g.AddTriple(NewResource("a"), NewResource("b"), NewResource("c"))
 	g.AddTriple(NewResource("a"), NewResource("b"), NewResource("d"))
 	g.AddTriple(NewResource("a"), NewResource("f"), NewLiteral("h"))
-	assert.Equal(t,3,g.Len())
+	assert.Equal(t, 3, g.Len())
 	g2.AddTriple(NewResource("g"), NewResource("b2"), NewResource("e"))
 	g2.AddTriple(NewResource("g"), NewResource("b2"), NewResource("c"))
-	assert.Equal(t,2,g2.Len())
+	assert.Equal(t, 2, g2.Len())
 
 	g.Merge(g2)
 
-	assert.Equal(t,5,g.Len())
-    assert.NotEqual(t,nil,g.One(NewResource("a"),NewResource("b"),NewResource("c")))
-	assert.NotEqual(t,nil,g.One(NewResource("a"),NewResource("b"),NewResource("d")))
-	assert.NotEqual(t,nil,g.One(NewResource("a"),NewResource("f"),NewResource("h")))
-	assert.NotEqual(t,nil,g.One(NewResource("g"),NewResource("b2"),NewResource("e")))
-	assert.NotEqual(t,nil,g.One(NewResource("g"),NewResource("b2"),NewResource("c")))
+	assert.Equal(t, 5, g.Len())
+	assert.NotEqual(t, nil, g.One(NewResource("a"), NewResource("b"), NewResource("c")))
+	assert.NotEqual(t, nil, g.One(NewResource("a"), NewResource("b"), NewResource("d")))
+	assert.NotEqual(t, nil, g.One(NewResource("a"), NewResource("f"), NewResource("h")))
+	assert.NotEqual(t, nil, g.One(NewResource("g"), NewResource("b2"), NewResource("e")))
+	assert.NotEqual(t, nil, g.One(NewResource("g"), NewResource("b2"), NewResource("c")))
 }

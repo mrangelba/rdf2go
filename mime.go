@@ -4,10 +4,18 @@ import (
 	"regexp"
 )
 
+const (
+	TurtleMime = "text/turtle"
+	JsonldMime = "application/ld+json"
+	SparQLMime = "application/sparql-update"
+	N3Mime     = "text/n3"
+	RDFXMLMime = "application/rdf+xml"
+)
+
 var mimeParser = map[string]string{
-	"text/turtle":               "turtle",
-	"application/ld+json":       "jsonld",
-	"application/sparql-update": "internal",
+	TurtleMime: "turtle",
+	JsonldMime: "jsonld",
+	SparQLMime: "internal",
 }
 
 var mimeSerializer = map[string]string{
@@ -15,11 +23,11 @@ var mimeSerializer = map[string]string{
 	"text/html":           "internal",
 }
 
-var mimeRdfExt = map[string]string{
-	".ttl":    "text/turtle",
-	".n3":     "text/n3",
-	".rdf":    "application/rdf+xml",
-	".jsonld": "application/ld+json",
+var RdfExtMime = map[string]string{
+	".ttl":    TurtleMime,
+	".n3":     N3Mime,
+	".rdf":    RDFXMLMime,
+	".jsonld": JsonldMime,
 }
 
 var rdfExtensions = []string{

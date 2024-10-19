@@ -264,6 +264,12 @@ func encodeTerm(iterm Term) string {
 		return term.String()
 	case *BlankNode:
 		return term.String()
+	case *RDFType:
+		return term.String()
+	case *NamespaceAttr:
+		return term.String()
+	case *List:
+		return term.String()
 	}
 
 	return ""
@@ -325,4 +331,90 @@ func defrag(s string) string {
 		return s
 	}
 	return lst[0]
+}
+
+type RDFType struct{}
+
+func NewRDFType() (term Term) {
+	return Term(&RDFType{})
+}
+
+func (term RDFType) String() string {
+	return "a"
+}
+
+func (term RDFType) RawValue() string {
+	return term.String()
+}
+
+func (term RDFType) Equal(other Term) bool {
+	_, ok := other.(*RDFType)
+	return ok
+}
+
+type NamespaceAttr struct {
+	NS   string
+	Attr string
+}
+
+func NewNamespaceAttr(ns string, name string) (term Term) {
+	return Term(&NamespaceAttr{NS: ns, Attr: name})
+}
+
+func (term NamespaceAttr) String() string {
+	return fmt.Sprintf("%s:%s", term.NS, term.Attr)
+}
+
+func (term NamespaceAttr) RawValue() string {
+	return term.String()
+}
+
+func (term NamespaceAttr) Equal(other Term) bool {
+	if spec, ok := other.(*NamespaceAttr); ok {
+		return term.NS == spec.NS && term.Attr == spec.Attr
+	}
+
+	return false
+}
+
+type List struct {
+	Items []Term
+}
+
+func NewList(items ...Term) (term Term) {
+	return Term(&List{Items: items})
+}
+
+func (term List) String() string {
+	str := ""
+	for i, item := range term.Items {
+		if i > 0 {
+			str += ","
+		}
+		if len(str) > 60 {
+			str += "\n"
+			str += "\t"
+		}
+		str += item.String()
+	}
+	return str
+}
+
+func (term List) RawValue() string {
+	return term.String()
+}
+
+func (term List) Equal(other Term) bool {
+	if spec, ok := other.(*List); ok {
+		if len(term.Items) != len(spec.Items) {
+			return false
+		}
+		for i, item := range term.Items {
+			if !item.Equal(spec.Items[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
