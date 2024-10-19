@@ -1,6 +1,6 @@
 module github.com/mrangelba/rdf2go
 
-go 1.23
+go 1.20
 
 require (
 	github.com/deiu/gon3 v0.0.0-20230411081920-f0f8f879f597
