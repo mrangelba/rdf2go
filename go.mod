@@ -1,10 +1,13 @@
 module github.com/mrangelba/rdf2go
 
-go 1.20
+go 1.21.1
+
+toolchain go1.23.3
 
 require (
 	github.com/deiu/gon3 v0.0.0-20230411081920-f0f8f879f597
 	github.com/linkeddata/gojsonld v0.0.0-20170418210642-4f5db6791326
+	github.com/nvkp/turtle v1.2.1
 	github.com/stretchr/testify v1.9.0
 )
 

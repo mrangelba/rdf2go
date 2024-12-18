@@ -22,7 +22,7 @@ func main() {
 	skill2 := rdf.NewResource("#skill2")
 	skill3 := rdf.NewResource("#skill3")
 
-	g.AddTriple(profile, rdf.NewRDFType(), ns1.WithAttr("Person"))
+	g.AddTriple(profile, rdf.NewRDFType(), ns1.WithAttr("Profile"))
 	g.AddTriple(profile, ns1.WithAttr("description"), rdf.NewLiteral("ShortBiography"))
 	g.AddTriple(profile, ns1.WithAttr("credentials"), rdf.NewList(credential1, credential2))
 	g.AddTriple(profile, ns1.WithAttr("id"), rdf.NewLiteral("01"))

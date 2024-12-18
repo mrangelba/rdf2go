@@ -23,6 +23,12 @@ import (
 	"fmt"
 )
 
+type SimpleTriple struct {
+	Subject   string `json:"Subject" turtle:"subject"`
+	Predicate string `json:"Predicate" turtle:"predicate"`
+	Object    string `json:"Object" turtle:"object"`
+}
+
 // Triple contains a subject, a predicate and an object term.
 type Triple struct {
 	Subject   Term
