@@ -63,7 +63,9 @@ func convertToNestedMap(triples []SimpleTriple) map[string]interface{} {
 			key := getKeyFromURI(predicate)
 
 			if len(objects) == 1 {
-				if grouped[objects[0]] != nil { // Verifica se é um objeto aninhado
+				if subject == objects[0] {
+					result[key] = objects[0]
+				} else if grouped[objects[0]] != nil { // Verifica se é um objeto aninhado
 					items := []map[string]interface{}{
 						processNestedObject(objects[0]),
 					}
@@ -83,6 +85,7 @@ func convertToNestedMap(triples []SimpleTriple) map[string]interface{} {
 				result[key] = items
 			}
 		}
+
 		return result
 	}
 
